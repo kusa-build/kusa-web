@@ -167,17 +167,18 @@ function createModelData(word: string): Float32Array {
   return data;
 }
 
-function createAutomationLogoData(): Float32Array {
+function createPromptMarkData(): Float32Array {
   const stencil = [
-    "          ###      ###",
-    "----      ###     ### ",
-    "          ###    ###  ",
-    "-------   ###   ###   ",
-    "          #######     ",
-    "------    ###   ###   ",
-    "          ###    ###  ",
-    "---       ###     ### ",
-    "          ###      ###",
+    "         ##            ++++++",
+    "         ##            ++++++",
+    "         ##            ++++++",
+    "+++      ##    ##      ++++++",
+    "  +++    ##  ##        ++++++",
+    "    +++  ####          ++++++",
+    "    +++  ####          ++++++",
+    "  +++    ##  ##        ++++++",
+    "+++      ##    ###     ++++++",
+    "                       ++++++",
   ] as const;
   let pointCount = 0;
   stencil.forEach((row) => {
@@ -188,8 +189,8 @@ function createAutomationLogoData(): Float32Array {
     }
   });
   const data = new Float32Array(pointCount * 7);
-  const modelWidth = 2.55;
-  const modelHeight = 1.65;
+  const modelWidth = 3.9;
+  const modelHeight = 2.1;
   let pointIndex = 0;
 
   stencil.forEach((row, rowIndex) => {
@@ -205,7 +206,7 @@ function createAutomationLogoData(): Float32Array {
       data[offset + 1] = y;
       data[offset + 2] = 0.18;
       data[offset + 5] = 1;
-      data[offset + 6] = cell === "#" ? 1 : 0.25;
+      data[offset + 6] = cell === "+" ? -1 : 1;
       pointIndex += 1;
     }
   });
@@ -229,7 +230,7 @@ function startKusaAsciiScene(): void {
   const asciiContext = renderingContext;
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const kusaModelData = createModelData("KUSA");
-  const logoModelData = createAutomationLogoData();
+  const logoModelData = createPromptMarkData();
   const homeControl = asciiStage.querySelector<HTMLAnchorElement>(".ascii-home");
   const navLinks = asciiStage.querySelectorAll<HTMLAnchorElement>(".ascii-nav a");
   const sections = asciiStage.querySelectorAll<HTMLElement>(".site-section");
@@ -312,6 +313,7 @@ function startKusaAsciiScene(): void {
     scale: number,
     reveal: number,
     bootProgress: number,
+    brandColors: boolean,
   ): void {
     if (reveal <= 0) {
       return;
@@ -361,12 +363,14 @@ function startKusaAsciiScene(): void {
         normalYawX * -0.34 + rotatedNormalY * 0.42 + rotatedNormalZ * 0.82,
       );
       const depthLight = clamp((rotatedZ + 0.8) / 1.7, 0, 1);
+      const pointBrightness = modelData[offset + 6] ?? 0;
       depthBuffer[index] = depth;
-      lightBuffer[index] = clamp(
-        0.1 + directionalLight * 0.48 + depthLight * 0.18 + (modelData[offset + 6] ?? 0) * 0.2,
+      const light = clamp(
+        0.1 + directionalLight * 0.48 + depthLight * 0.18 + Math.abs(pointBrightness) * 0.2,
         0.04,
         1,
       );
+      lightBuffer[index] = pointBrightness < 0 ? -light : light;
     }
 
     const destinationWidth = atlasCellWidth / pixelRatio;
@@ -388,6 +392,10 @@ function startKusaAsciiScene(): void {
         colorIndex = cellHash(index + noiseFrame * 53, 41) < 0.5 ? 0 : 1;
       } else {
         let light = lightBuffer[index] ?? 0;
+        const brandGreen = light < 0;
+        if (brandGreen) {
+          light = -light;
+        }
         if (pointerSeen) {
           const deltaX = (column + 0.5) * cellWidth - pointerClientX;
           const deltaY = (row + 0.5) * cellHeight - pointerClientY;
@@ -397,7 +405,11 @@ function startKusaAsciiScene(): void {
           }
         }
         glyphIndex = Math.min(glyphRamp.length - 1, Math.floor(light * glyphRamp.length));
-        colorIndex = Math.min(gruvboxRamp.length - 1, Math.floor(light * gruvboxRamp.length));
+        colorIndex = brandColors
+          ? brandGreen
+            ? 4
+            : 6
+          : Math.min(gruvboxRamp.length - 1, Math.floor(light * gruvboxRamp.length));
       }
 
       asciiContext.drawImage(
@@ -416,9 +428,9 @@ function startKusaAsciiScene(): void {
 
   function renderAsciiModel(timestamp: number): void {
     const homeScale = Math.min(width * 0.25, height * 0.37);
-    const logoScale = width < 600 ? 40 : 44;
-    const logoCenterX = (width < 600 ? 12 : clamp(width * 0.03, 16, 40)) + logoScale * 1.2;
-    const logoCenterY = width < 600 ? 49 : 53;
+    const logoScale = width < 600 ? 34 : 40;
+    const logoCenterX = (width < 600 ? 12 : clamp(width * 0.03, 16, 40)) + logoScale * 1.95;
+    const logoCenterY = width < 600 ? 52 : 58;
     const centerX = width / 2 + (logoCenterX - width / 2) * viewProgress;
     const centerY = height / 2 + (logoCenterY - height / 2) * viewProgress;
     const scale = homeScale + (logoScale - homeScale) * viewProgress;
@@ -429,8 +441,8 @@ function startKusaAsciiScene(): void {
     const kReveal = clamp((viewProgress - 0.18) / 0.82, 0, 1);
 
     asciiContext.clearRect(0, 0, width, height);
-    drawAsciiModel(kusaModelData, timestamp, centerX, centerY, scale, kusaReveal, bootProgress);
-    drawAsciiModel(logoModelData, timestamp, centerX, centerY, scale, kReveal, bootProgress);
+    drawAsciiModel(kusaModelData, timestamp, centerX, centerY, scale, kusaReveal, bootProgress, false);
+    drawAsciiModel(logoModelData, timestamp, centerX, centerY, scale, kReveal, bootProgress, true);
   }
 
   function scheduleFrame(): void {
@@ -454,7 +466,7 @@ function startKusaAsciiScene(): void {
     asciiCanvas.setAttribute(
       "aria-label",
       validRoute
-        ? "K rendered as a three-dimensional ASCII logo"
+        ? "Kusa mark — a prompt, the letter k, and a block cursor — rendered as ASCII art"
         : "KUSA rendered as three-dimensional ASCII art that tilts toward the cursor",
     );
     if (homeControl) {

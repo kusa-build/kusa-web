@@ -66,8 +66,8 @@ main {
   z-index: 4;
   top: 1rem;
   left: clamp(1rem, 3vw, 2.5rem);
-  width: 8rem;
-  height: 5rem;
+  width: 11rem;
+  height: 6rem;
   visibility: hidden;
   opacity: 0;
 }
@@ -250,8 +250,8 @@ main {
   .ascii-home {
     top: 0.75rem;
     left: 0.75rem;
-    width: 7rem;
-    height: 4.5rem;
+    width: 9.5rem;
+    height: 5.5rem;
   }
 
   .site-section {
