@@ -191,8 +191,8 @@ main {
 }
 
 .ascii-nav a {
-  color: #928374;
-  font-size: clamp(0.62rem, 0.78vw, 0.78rem);
+  color: #a89984;
+  font-size: clamp(0.78rem, 1vw, 0.95rem);
   line-height: 1;
   letter-spacing: 0.16em;
   text-decoration: none;
