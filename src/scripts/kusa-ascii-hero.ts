@@ -1,22 +1,14 @@
-type Point3 = {
-  readonly x: number;
-  readonly y: number;
-  readonly z: number;
-  readonly normalX: number;
-  readonly normalY: number;
-  readonly normalZ: number;
-  readonly brightness: number;
+type WordCell = {
+  readonly dx: number;
+  readonly dy: number;
+  readonly weight: number;
+  readonly green: boolean;
+  readonly cursor: boolean;
 };
 
-const gruvboxRamp = ["#504945", "#7c6f64", "#928374", "#98971a", "#b8bb26", "#fabd2f", "#ebdbb2"] as const;
 const glyphRamp = [".", ":", "-", "+", "*", "=", "%", "@", "#", "&"] as const;
-const rotationScalar = Math.PI * 0.2;
-const autoRotationSpeed = 0.0004;
-const autoRotationMaxDistance = 0.28;
-const cameraDistance = 6;
 const bootDurationMs = 900;
 const viewTransitionDurationMs = 560;
-const glowRadius = 130;
 const routes = ["purpose", "values", "posts", "contact"] as const;
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -26,145 +18,6 @@ function clamp(value: number, minimum: number, maximum: number): number {
 function cellHash(index: number, salt: number): number {
   const value = Math.sin(index * 12.9898 + salt * 78.233) * 43_758.5453;
   return value - Math.floor(value);
-}
-
-function createWordModel(word: string): ReadonlyArray<Point3> {
-  const sampleCanvas = document.createElement("canvas");
-  sampleCanvas.width = 960;
-  sampleCanvas.height = 280;
-  const sampleContext = sampleCanvas.getContext("2d", { willReadFrequently: true });
-  if (!sampleContext) {
-    return [];
-  }
-
-  let fontSize = 236;
-  const tracking = 7;
-  sampleContext.font = `900 ${fontSize}px Arial Black, Arial, sans-serif`;
-  let textWidth = sampleContext.measureText(word).width + tracking * (word.length - 1);
-  while (textWidth > sampleCanvas.width * 0.9 && fontSize > 72) {
-    fontSize -= 2;
-    sampleContext.font = `900 ${fontSize}px Arial Black, Arial, sans-serif`;
-    textWidth = sampleContext.measureText(word).width + tracking * (word.length - 1);
-  }
-
-  sampleContext.fillStyle = "#ffffff";
-  sampleContext.textAlign = "left";
-  sampleContext.textBaseline = "middle";
-  let characterX = (sampleCanvas.width - textWidth) / 2;
-  for (const character of word) {
-    sampleContext.fillText(character, characterX, sampleCanvas.height / 2);
-    characterX += sampleContext.measureText(character).width + tracking;
-  }
-
-  const pixels = sampleContext.getImageData(0, 0, sampleCanvas.width, sampleCanvas.height).data;
-  const rawPoints: Array<{ readonly x: number; readonly y: number; readonly alpha: number }> = [];
-  const sampleStep = 6;
-  let minimumX = sampleCanvas.width;
-  let maximumX = 0;
-  let minimumY = sampleCanvas.height;
-  let maximumY = 0;
-
-  for (let y = 0; y < sampleCanvas.height; y += sampleStep) {
-    for (let x = 0; x < sampleCanvas.width; x += sampleStep) {
-      const alpha = pixels[(y * sampleCanvas.width + x) * 4 + 3] ?? 0;
-      if (alpha < 90) {
-        continue;
-      }
-      rawPoints.push({ x, y, alpha });
-      minimumX = Math.min(minimumX, x);
-      maximumX = Math.max(maximumX, x);
-      minimumY = Math.min(minimumY, y);
-      maximumY = Math.max(maximumY, y);
-    }
-  }
-
-  if (rawPoints.length === 0) {
-    return [];
-  }
-
-  function alphaAt(x: number, y: number): number {
-    if (x < 0 || x >= sampleCanvas.width || y < 0 || y >= sampleCanvas.height) {
-      return 0;
-    }
-    return pixels[(Math.round(y) * sampleCanvas.width + Math.round(x)) * 4 + 3] ?? 0;
-  }
-
-  const targetWidth = 2.9;
-  const targetHeight = 1.28;
-  const sourceWidth = Math.max(1, maximumX - minimumX);
-  const sourceHeight = Math.max(1, maximumY - minimumY);
-  const extrusionLayers = 6;
-  const points: Array<Point3> = [];
-
-  for (const rawPoint of rawPoints) {
-    const normalizedX = (rawPoint.x - minimumX) / sourceWidth - 0.5;
-    const normalizedY = 0.5 - (rawPoint.y - minimumY) / sourceHeight;
-    const modelX = normalizedX * targetWidth;
-    const modelY = normalizedY * targetHeight;
-    const brightness = rawPoint.alpha / 255;
-
-    points.push({
-      x: modelX,
-      y: modelY,
-      z: 0.22,
-      normalX: 0,
-      normalY: 0,
-      normalZ: 1,
-      brightness,
-    });
-    points.push({
-      x: modelX,
-      y: modelY,
-      z: -0.22,
-      normalX: 0,
-      normalY: 0,
-      normalZ: -1,
-      brightness: brightness * 0.7,
-    });
-
-    const leftAlpha = alphaAt(rawPoint.x - sampleStep, rawPoint.y);
-    const rightAlpha = alphaAt(rawPoint.x + sampleStep, rawPoint.y);
-    const topAlpha = alphaAt(rawPoint.x, rawPoint.y - sampleStep);
-    const bottomAlpha = alphaAt(rawPoint.x, rawPoint.y + sampleStep);
-    const edgeNormalX = (leftAlpha - rightAlpha) / 255;
-    const edgeNormalY = (bottomAlpha - topAlpha) / 255;
-    const edgeLength = Math.sqrt(edgeNormalX * edgeNormalX + edgeNormalY * edgeNormalY);
-
-    if (edgeLength < 0.2) {
-      continue;
-    }
-
-    for (let layer = 1; layer < extrusionLayers - 1; layer += 1) {
-      const layerProgress = layer / (extrusionLayers - 1);
-      points.push({
-        x: modelX,
-        y: modelY,
-        z: (layerProgress - 0.5) * 0.44,
-        normalX: edgeNormalX / edgeLength,
-        normalY: edgeNormalY / edgeLength,
-        normalZ: 0,
-        brightness: brightness * 0.82,
-      });
-    }
-  }
-
-  return points;
-}
-
-function createModelData(word: string): Float32Array {
-  const model = createWordModel(word);
-  const data = new Float32Array(model.length * 7);
-  model.forEach((point, pointIndex) => {
-    const offset = pointIndex * 7;
-    data[offset] = point.x;
-    data[offset + 1] = point.y;
-    data[offset + 2] = point.z;
-    data[offset + 3] = point.normalX;
-    data[offset + 4] = point.normalY;
-    data[offset + 5] = point.normalZ;
-    data[offset + 6] = point.brightness;
-  });
-  return data;
 }
 
 function startKusaAsciiScene(): void {
@@ -183,58 +36,144 @@ function startKusaAsciiScene(): void {
   const asciiCanvas = canvas;
   const asciiContext = renderingContext;
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  const kusaModelData = createModelData("KUSA");
   const homeControl = asciiStage.querySelector<HTMLAnchorElement>(".ascii-home");
   const homeWord = asciiStage.querySelector<HTMLElement>(".ascii-home .home-word");
   const navLinks = asciiStage.querySelectorAll<HTMLAnchorElement>(".ascii-nav a");
   const sections = asciiStage.querySelectorAll<HTMLElement>(".site-section");
-  const glyphAtlas = document.createElement("canvas");
   let width = 0;
   let height = 0;
   let pixelRatio = 1;
-  let cellWidth = 6.2;
-  let cellHeight = 10.5;
-  let atlasCellWidth = 0;
-  let atlasCellHeight = 0;
-  let columns = 0;
-  let rows = 0;
-  let depthBuffer = new Float32Array(0);
-  let lightBuffer = new Float32Array(0);
-  let litCells = new Int32Array(0);
-  let pointerX = 0;
-  let pointerY = 0;
-  let pointerClientX = 0;
-  let pointerClientY = 0;
-  let pointerSeen = false;
-  let yaw = 0;
-  let pitch = 0;
+  let cellWidth = 6.8;
+  let cellHeight = 11.9;
+  let fontSize = 11;
+  let wordCells: ReadonlyArray<WordCell> = [];
   let framePending = false;
   let bootStartedAt = -1;
+  let cursorOn = true;
+  let blinkTimer = 0;
   let viewProgress = routes.includes(location.hash.slice(1) as (typeof routes)[number]) ? 1 : 0;
   let transitionFrom = viewProgress;
   let transitionTarget = viewProgress;
   let transitionStartedAt = -1;
   let focusAfterTransition = "";
 
-  function buildGlyphAtlas(fontSize: number): void {
-    atlasCellWidth = Math.ceil(cellWidth * pixelRatio);
-    atlasCellHeight = Math.ceil(cellHeight * pixelRatio);
-    glyphAtlas.width = atlasCellWidth * glyphRamp.length;
-    glyphAtlas.height = atlasCellHeight * gruvboxRamp.length;
-    const atlasContext = glyphAtlas.getContext("2d");
-    if (!atlasContext) {
+  function buildWordModel(): void {
+    const wordWidth =
+      width < 700 ? width * 0.94 : Math.min(width * 0.72, 1_100);
+    fontSize = wordWidth < 560 ? 6 : wordWidth < 860 ? 9 : 11;
+    cellWidth = fontSize * 0.62;
+    cellHeight = fontSize * 1.08;
+
+    const sampleCanvas = document.createElement("canvas");
+    const sampleHeight = Math.round(wordWidth * 0.3);
+    sampleCanvas.width = Math.round(wordWidth);
+    sampleCanvas.height = sampleHeight;
+    const sampleContext = sampleCanvas.getContext("2d", { willReadFrequently: true });
+    if (!sampleContext) {
       return;
     }
-    atlasContext.font = `600 ${fontSize * pixelRatio}px SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-    atlasContext.textAlign = "left";
-    atlasContext.textBaseline = "top";
-    atlasContext.globalAlpha = 0.95;
-    gruvboxRamp.forEach((color, colorIndex) => {
-      atlasContext.fillStyle = color;
-      glyphRamp.forEach((glyph, glyphIndex) => {
-        atlasContext.fillText(glyph, glyphIndex * atlasCellWidth, colorIndex * atlasCellHeight);
-      });
-    });
+
+    const sampleFontSize = sampleHeight * 0.74;
+    sampleContext.font = `700 ${sampleFontSize}px SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    sampleContext.textBaseline = "alphabetic";
+    const characterWidth = sampleContext.measureText("k").width;
+    const xHeight = sampleFontSize * 0.52;
+    const ascent = sampleFontSize * 0.74;
+    const chevronWidth = characterWidth * 0.58;
+    const chevronGap = characterWidth * 0.12;
+    const cursorWidth = characterWidth * 0.5;
+    const cursorGap = characterWidth * 0.14;
+    const totalWidth = chevronWidth + chevronGap + characterWidth * 4 + cursorGap + cursorWidth;
+    const startX = (sampleCanvas.width - totalWidth) / 2;
+    const baseline = sampleHeight * 0.78;
+    const strokeWidth = sampleFontSize * 0.11;
+
+    sampleContext.strokeStyle = "#0f0";
+    sampleContext.lineWidth = strokeWidth;
+    sampleContext.lineJoin = "miter";
+    sampleContext.beginPath();
+    sampleContext.moveTo(startX + strokeWidth / 2, baseline - xHeight + strokeWidth / 2);
+    sampleContext.lineTo(startX + chevronWidth - strokeWidth / 2, baseline - xHeight / 2);
+    sampleContext.lineTo(startX + strokeWidth / 2, baseline - strokeWidth / 2);
+    sampleContext.stroke();
+    sampleContext.fillStyle = "#fff";
+    sampleContext.fillText("kusa", startX + chevronWidth + chevronGap, baseline);
+    sampleContext.fillStyle = "#0f0";
+    sampleContext.fillRect(
+      startX + chevronWidth + chevronGap + characterWidth * 4 + cursorGap,
+      baseline - ascent,
+      cursorWidth,
+      ascent + sampleFontSize * 0.09,
+    );
+
+    const pixels = sampleContext.getImageData(0, 0, sampleCanvas.width, sampleHeight).data;
+    const modelColumns = Math.ceil(sampleCanvas.width / cellWidth);
+    const modelRows = Math.ceil(sampleHeight / cellHeight);
+    const cells: Array<{
+      column: number;
+      row: number;
+      weight: number;
+      green: boolean;
+      cursor: boolean;
+    }> = [];
+
+    for (let row = 0; row < modelRows; row += 1) {
+      for (let column = 0; column < modelColumns; column += 1) {
+        let hits = 0;
+        let greenHits = 0;
+        let samples = 0;
+        for (let subY = 0; subY < 3; subY += 1) {
+          for (let subX = 0; subX < 2; subX += 1) {
+            const sampleX = Math.min(
+              sampleCanvas.width - 1,
+              Math.round(column * cellWidth + (subX * cellWidth) / 2 + 1),
+            );
+            const sampleY = Math.min(
+              sampleHeight - 1,
+              Math.round(row * cellHeight + (subY * cellHeight) / 3 + 1),
+            );
+            const pixelOffset = (sampleY * sampleCanvas.width + sampleX) * 4;
+            if ((pixels[pixelOffset + 3] ?? 0) > 100) {
+              hits += 1;
+              if ((pixels[pixelOffset + 1] ?? 0) > 200 && (pixels[pixelOffset] ?? 0) < 100) {
+                greenHits += 1;
+              }
+            }
+            samples += 1;
+          }
+        }
+        if (hits / samples > 0.3) {
+          cells.push({
+            column,
+            row,
+            weight: hits / samples,
+            green: greenHits > hits / 2,
+            cursor: false,
+          });
+        }
+      }
+    }
+
+    let maxGreenColumn = 0;
+    for (const cell of cells) {
+      if (cell.green && cell.column > maxGreenColumn) {
+        maxGreenColumn = cell.column;
+      }
+    }
+    const cursorColumns = Math.ceil(cursorWidth / cellWidth) + 1;
+    for (const cell of cells) {
+      if (cell.green && cell.column > maxGreenColumn - cursorColumns) {
+        cell.cursor = true;
+      }
+    }
+
+    wordCells = cells.map((cell) => ({
+      dx: cell.column + 0.5 - modelColumns / 2,
+      dy: cell.row + 0.5 - modelRows / 2,
+      weight: cell.weight,
+      green: cell.green,
+      cursor: cell.cursor,
+    }));
   }
 
   function resizeAsciiCanvas(): void {
@@ -242,148 +181,65 @@ function startKusaAsciiScene(): void {
     width = Math.max(320, Math.round(bounds.width));
     height = Math.max(420, Math.round(bounds.height));
     pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-    const fontSize = width < 520 ? 8 : width < 1_000 ? 9 : 10;
-    cellWidth = fontSize * 0.62;
-    cellHeight = fontSize * 1.08;
-    columns = Math.ceil(width / cellWidth);
-    rows = Math.ceil(height / cellHeight);
     asciiCanvas.width = Math.round(width * pixelRatio);
     asciiCanvas.height = Math.round(height * pixelRatio);
     asciiCanvas.style.width = `${width}px`;
     asciiCanvas.style.height = `${height}px`;
     asciiContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    depthBuffer = new Float32Array(columns * rows);
-    lightBuffer = new Float32Array(columns * rows);
-    litCells = new Int32Array(columns * rows);
-    buildGlyphAtlas(fontSize);
+    buildWordModel();
     scheduleFrame();
   }
 
-  function drawAsciiModel(
-    modelData: Float32Array,
-    timestamp: number,
-    centerX: number,
-    centerY: number,
-    scale: number,
-    reveal: number,
-    bootProgress: number,
-  ): void {
-    if (reveal <= 0) {
+  function renderAsciiModel(timestamp: number): void {
+    asciiContext.clearRect(0, 0, width, height);
+    const reveal = clamp(1 - viewProgress * 1.25, 0, 1);
+    if (reveal <= 0 || wordCells.length === 0) {
       return;
     }
-    depthBuffer.fill(-100);
-    let litCount = 0;
-    const cosineYaw = Math.cos(yaw);
-    const sineYaw = Math.sin(yaw);
-    const cosinePitch = Math.cos(pitch);
-    const sinePitch = Math.sin(pitch);
 
-    for (let offset = 0; offset < modelData.length; offset += 7) {
-      const pointX = modelData[offset] ?? 0;
-      const pointY = modelData[offset + 1] ?? 0;
-      const pointZ = modelData[offset + 2] ?? 0;
-      const yawX = pointX * cosineYaw - pointZ * sineYaw;
-      const yawZ = pointX * sineYaw + pointZ * cosineYaw;
-      const rotatedY = pointY * cosinePitch - yawZ * sinePitch;
-      const rotatedZ = pointY * sinePitch + yawZ * cosinePitch;
-      const perspective = cameraDistance / (cameraDistance - rotatedZ);
-      const column = Math.floor((centerX + yawX * scale * perspective) / cellWidth);
-      const row = Math.floor((centerY - rotatedY * scale * perspective) / cellHeight);
-      if (column < 0 || column >= columns || row < 0 || row >= rows) {
-        continue;
-      }
-
-      const index = row * columns + column;
-      const depth = rotatedZ * perspective;
-      const previousDepth = depthBuffer[index] ?? -100;
-      if (depth <= previousDepth) {
-        continue;
-      }
-      if (previousDepth === -100) {
-        litCells[litCount] = index;
-        litCount += 1;
-      }
-
-      const normalX = modelData[offset + 3] ?? 0;
-      const normalY = modelData[offset + 4] ?? 0;
-      const normalZ = modelData[offset + 5] ?? 0;
-      const normalYawX = normalX * cosineYaw - normalZ * sineYaw;
-      const normalYawZ = normalX * sineYaw + normalZ * cosineYaw;
-      const rotatedNormalY = normalY * cosinePitch - normalYawZ * sinePitch;
-      const rotatedNormalZ = normalY * sinePitch + normalYawZ * cosinePitch;
-      const directionalLight = Math.max(
-        0,
-        normalYawX * -0.34 + rotatedNormalY * 0.42 + rotatedNormalZ * 0.82,
-      );
-      const depthLight = clamp((rotatedZ + 0.8) / 1.7, 0, 1);
-      depthBuffer[index] = depth;
-      lightBuffer[index] = clamp(
-        0.1 + directionalLight * 0.48 + depthLight * 0.18 + (modelData[offset + 6] ?? 0) * 0.2,
-        0.04,
-        1,
-      );
-    }
-
-    const destinationWidth = atlasCellWidth / pixelRatio;
-    const destinationHeight = atlasCellHeight / pixelRatio;
-    const noiseFrame = Math.floor(timestamp / 48);
-
-    for (let litIndex = 0; litIndex < litCount; litIndex += 1) {
-      const index = litCells[litIndex] ?? 0;
-      if (cellHash(index, 73) > reveal) {
-        continue;
-      }
-      const column = index % columns;
-      const row = Math.floor(index / columns);
-      let glyphIndex: number;
-      let colorIndex: number;
-
-      if (bootProgress < 1 && cellHash(index, 17) > bootProgress) {
-        glyphIndex = Math.floor(cellHash(index + noiseFrame * 97, 29) * glyphRamp.length);
-        colorIndex = cellHash(index + noiseFrame * 53, 41) < 0.5 ? 0 : 1;
-      } else {
-        let light = lightBuffer[index] ?? 0;
-        if (pointerSeen) {
-          const deltaX = (column + 0.5) * cellWidth - pointerClientX;
-          const deltaY = (row + 0.5) * cellHeight - pointerClientY;
-          const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-          if (distance < glowRadius) {
-            light = Math.min(1, light + (1 - distance / glowRadius) * 0.22);
-          }
-        }
-        glyphIndex = Math.min(glyphRamp.length - 1, Math.floor(light * glyphRamp.length));
-        colorIndex = Math.min(gruvboxRamp.length - 1, Math.floor(light * gruvboxRamp.length));
-      }
-
-      asciiContext.drawImage(
-        glyphAtlas,
-        glyphIndex * atlasCellWidth,
-        colorIndex * atlasCellHeight,
-        atlasCellWidth,
-        atlasCellHeight,
-        column * cellWidth,
-        row * cellHeight,
-        destinationWidth,
-        destinationHeight,
-      );
-    }
-  }
-
-  function renderAsciiModel(timestamp: number): void {
-    const homeScale = Math.min(width * 0.25, height * 0.37);
-    const markScale = width < 600 ? 30 : 36;
     const markCenterX = (width < 600 ? 12 : clamp(width * 0.03, 16, 40)) + 70;
     const markCenterY = width < 600 ? 44 : 50;
     const centerX = width / 2 + (markCenterX - width / 2) * viewProgress;
     const centerY = height / 2 + (markCenterY - height / 2) * viewProgress;
-    const scale = homeScale + (markScale - homeScale) * viewProgress;
+    const scale = 1 + (0.08 - 1) * viewProgress;
     const bootProgress = reducedMotion.matches
       ? 1
       : clamp((timestamp - bootStartedAt) / bootDurationMs, 0, 1);
-    const kusaReveal = clamp(1 - viewProgress * 1.25, 0, 1);
+    const noiseFrame = Math.floor(timestamp / 48);
 
-    asciiContext.clearRect(0, 0, width, height);
-    drawAsciiModel(kusaModelData, timestamp, centerX, centerY, scale, kusaReveal, bootProgress);
+    asciiContext.font = `600 ${Math.max(4, fontSize * scale)}px SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+    asciiContext.textBaseline = "top";
+
+    for (let cellIndex = 0; cellIndex < wordCells.length; cellIndex += 1) {
+      const cell = wordCells[cellIndex];
+      if (!cell) {
+        continue;
+      }
+      if (cellHash(cellIndex, 73) > reveal) {
+        continue;
+      }
+      let glyph: string;
+      let color: string;
+      if (bootProgress < 1 && cellHash(cellIndex, 17) > bootProgress) {
+        glyph =
+          glyphRamp[Math.floor(cellHash(cellIndex + noiseFrame * 97, 29) * glyphRamp.length)] ??
+          ".";
+        color = cellHash(cellIndex + noiseFrame * 53, 41) < 0.5 ? "#504945" : "#7c6f64";
+      } else {
+        if (cell.cursor && !cursorOn) {
+          continue;
+        }
+        const density = Math.min(0.999, 0.6 + cell.weight * 0.4);
+        glyph = glyphRamp[Math.floor(density * glyphRamp.length)] ?? "&";
+        color = cell.green ? "#b8bb26" : cell.weight > 0.55 ? "#ebdbb2" : "#d5c4a1";
+      }
+      asciiContext.fillStyle = color;
+      asciiContext.fillText(
+        glyph,
+        centerX + cell.dx * cellWidth * scale - (cellWidth * scale) / 2,
+        centerY + cell.dy * cellHeight * scale - (cellHeight * scale) / 2,
+      );
+    }
   }
 
   function scheduleFrame(): void {
@@ -391,6 +247,25 @@ function startKusaAsciiScene(): void {
       framePending = true;
       window.requestAnimationFrame(renderAsciiFrame);
     }
+  }
+
+  function stopCursorBlink(): void {
+    window.clearTimeout(blinkTimer);
+    blinkTimer = 0;
+    cursorOn = true;
+  }
+
+  function blinkTick(): void {
+    cursorOn = !cursorOn;
+    scheduleFrame();
+    blinkTimer = window.setTimeout(blinkTick, cursorOn ? 700 : 450);
+  }
+
+  function startCursorBlink(): void {
+    if (blinkTimer !== 0 || reducedMotion.matches || document.hidden) {
+      return;
+    }
+    blinkTimer = window.setTimeout(blinkTick, 700);
   }
 
   function focusView(route: string): void {
@@ -456,14 +331,12 @@ function startKusaAsciiScene(): void {
   function setView(route: string, animate: boolean, moveFocus: boolean): void {
     const validRoute = routes.includes(route as (typeof routes)[number]) ? route : "";
     asciiStage.dataset.view = validRoute || "home";
-    asciiCanvas.setAttribute(
-      "aria-label",
-      "KUSA rendered as three-dimensional ASCII art that tilts toward the cursor",
-    );
     if (validRoute) {
       asciiCanvas.setAttribute("aria-hidden", "true");
+      stopCursorBlink();
     } else {
       asciiCanvas.removeAttribute("aria-hidden");
+      startCursorBlink();
     }
     if (homeControl) {
       homeControl.tabIndex = validRoute ? 0 : -1;
@@ -527,61 +400,29 @@ function startKusaAsciiScene(): void {
       }
     }
 
-    let targetYaw: number;
-    let targetPitch: number;
-    if (reducedMotion.matches || transitionTarget === 1) {
-      targetYaw = -0.12;
-      targetPitch = -0.03;
-    } else if (pointerSeen) {
-      targetYaw = pointerX * rotationScalar;
-      targetPitch = pointerY * rotationScalar;
-    } else if (bootActive) {
-      targetYaw = Math.sin(timestamp * autoRotationSpeed) * autoRotationMaxDistance;
-      targetPitch = Math.cos(timestamp * autoRotationSpeed) * autoRotationMaxDistance * 0.35;
-    } else {
-      targetYaw = -0.2;
-      targetPitch = -0.07;
-    }
-    if (reducedMotion.matches) {
-      yaw = targetYaw;
-      pitch = targetPitch;
-      renderAsciiModel(timestamp);
-      return;
-    }
-    const yawDelta = targetYaw - yaw;
-    const pitchDelta = targetPitch - pitch;
-    const settled =
-      !bootActive &&
-      !transitionActive &&
-      Math.abs(yawDelta) < 0.0005 &&
-      Math.abs(pitchDelta) < 0.0005;
-
-    if (settled) {
-      yaw = targetYaw;
-      pitch = targetPitch;
-      renderAsciiModel(timestamp);
-      return;
-    }
-
-    yaw += yawDelta * 0.35;
-    pitch += pitchDelta * 0.35;
     renderAsciiModel(timestamp);
-    scheduleFrame();
+    if (bootActive || transitionActive) {
+      scheduleFrame();
+    }
   }
 
-  window.addEventListener(
-    "pointermove",
-    (event) => {
-      pointerX = clamp((event.clientX / window.innerWidth) * 2 - 1, -1, 1);
-      pointerY = clamp((event.clientY / window.innerHeight) * 2 - 1, -1, 1);
-      pointerClientX = event.clientX;
-      pointerClientY = event.clientY;
-      pointerSeen = true;
+  reducedMotion.addEventListener("change", () => {
+    if (reducedMotion.matches) {
+      stopCursorBlink();
+    } else if (asciiStage.dataset.view === "home") {
+      startCursorBlink();
+    }
+    scheduleFrame();
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopCursorBlink();
+    } else if (asciiStage.dataset.view === "home") {
+      startCursorBlink();
       scheduleFrame();
-    },
-    { passive: true },
-  );
-  reducedMotion.addEventListener("change", scheduleFrame);
+    }
+  });
 
   navLinks.forEach((link) => {
     link.addEventListener("click", (event) => {

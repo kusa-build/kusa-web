@@ -38,7 +38,6 @@ main {
     radial-gradient(ellipse at 50% 50%, color-mix(in srgb, var(--ascii-glow) 8%, transparent), transparent 42%),
     #1d2021;
   isolation: isolate;
-  cursor: crosshair;
 }
 
 .ascii-screen::before {
@@ -50,6 +49,72 @@ main {
   background-size: 20px 20px;
   content: "";
   pointer-events: none;
+}
+
+.dots-drift {
+  position: absolute;
+  z-index: 0;
+  inset: -20%;
+  background-image: radial-gradient(circle 1.05px at center, currentcolor 99%, transparent);
+  background-size: 20px 20px;
+  opacity: 0;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(ellipse 42% 55% at 50% 50%, black, transparent 70%);
+  mask-image: radial-gradient(ellipse 42% 55% at 50% 50%, black, transparent 70%);
+}
+
+.dots-drift.a {
+  color: #98971a;
+  animation: dots-drift-a 11s ease-in-out infinite;
+}
+
+.dots-drift.b {
+  color: #d79921;
+  animation: dots-drift-b 13s ease-in-out infinite 4s;
+}
+
+.dots-drift.c {
+  color: #689d6a;
+  animation: dots-drift-c 17s ease-in-out infinite 8s;
+}
+
+@keyframes dots-drift-a {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translate(-6%, -4%);
+  }
+
+  50% {
+    opacity: 0.06;
+    transform: translate(2%, 3%);
+  }
+}
+
+@keyframes dots-drift-b {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translate(5%, 2%);
+  }
+
+  50% {
+    opacity: 0.05;
+    transform: translate(-3%, -3%);
+  }
+}
+
+@keyframes dots-drift-c {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translate(-2%, 5%);
+  }
+
+  50% {
+    opacity: 0.045;
+    transform: translate(4%, -2%);
+  }
 }
 
 .ascii-canvas {
