@@ -1,5 +1,7 @@
 import { defineConfig } from "astro/config";
 
+const isOrb = Boolean(process.env.AMP_ORB);
+
 export default defineConfig({
   devToolbar: {
     enabled: false,
@@ -10,6 +12,7 @@ export default defineConfig({
   vite: {
     server: {
       strictPort: true,
+      ...(isOrb ? { allowedHosts: true } : {}),
     },
     preview: {
       strictPort: true,

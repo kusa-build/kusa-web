@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NODE_VERSION=22.14.0
+NODE_DIR="$HOME/.local/node-v$NODE_VERSION-linux-x64"
+
+echo "==> Node $NODE_VERSION"
+if [ ! -x "$NODE_DIR/bin/node" ]; then
+  mkdir -p "$HOME/.local"
+  curl -fsSL "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.xz" | tar -xJ -C "$HOME/.local"
+fi
+"$NODE_DIR/bin/node" -v
+
+marker="# kusa-web Node toolchain"
+if ! grep -Fqx "$marker" "$HOME/.bash_profile" 2>/dev/null; then
+  cat >> "$HOME/.bash_profile" <<EOF
+
+$marker
+export PATH="$NODE_DIR/bin:\$PATH"
+EOF
+fi
+
+export PATH="$NODE_DIR/bin:$PATH"
+
+echo "==> npm install"
+npm install
