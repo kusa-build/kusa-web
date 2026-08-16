@@ -14,9 +14,16 @@ const rotationScalar = Math.PI * 0.2;
 const autoRotationSpeed = 0.0004;
 const autoRotationMaxDistance = 0.28;
 const cameraDistance = 6;
+const bootDurationMs = 900;
+const glowRadius = 130;
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
+}
+
+function cellHash(index: number, salt: number): number {
+  const value = Math.sin(index * 12.9898 + salt * 78.233) * 43_758.5453;
+  return value - Math.floor(value);
 }
 
 function createWordModel(word: string): ReadonlyArray<Point3> {
@@ -185,10 +192,13 @@ function startKusaAsciiScene(): void {
   let litCells = new Int32Array(0);
   let pointerX = 0;
   let pointerY = 0;
+  let pointerClientX = 0;
+  let pointerClientY = 0;
   let pointerSeen = false;
   let yaw = 0;
   let pitch = 0;
   let framePending = false;
+  let bootStartedAt = -1;
 
   function buildGlyphAtlas(fontSize: number): void {
     atlasCellWidth = Math.ceil(cellWidth * pixelRatio);
@@ -246,7 +256,7 @@ function startKusaAsciiScene(): void {
     };
   }
 
-  function renderAsciiModel(): void {
+  function renderAsciiModel(timestamp: number): void {
     depthBuffer.fill(-100);
     let litCount = 0;
     const cosineYaw = Math.cos(yaw);
@@ -306,20 +316,46 @@ function startKusaAsciiScene(): void {
     asciiContext.clearRect(0, 0, width, height);
     const destinationWidth = atlasCellWidth / pixelRatio;
     const destinationHeight = atlasCellHeight / pixelRatio;
+    const bootProgress = reducedMotion.matches
+      ? 1
+      : clamp((timestamp - bootStartedAt) / bootDurationMs, 0, 1);
+    const noiseFrame = Math.floor(timestamp / 48);
+    const canvasBounds = pointerSeen ? asciiCanvas.getBoundingClientRect() : null;
+    const pointerCanvasX = canvasBounds ? pointerClientX - canvasBounds.left : 0;
+    const pointerCanvasY = canvasBounds ? pointerClientY - canvasBounds.top : 0;
 
     for (let litIndex = 0; litIndex < litCount; litIndex += 1) {
       const index = litCells[litIndex] ?? 0;
-      const light = lightBuffer[index] ?? 0;
-      const glyphIndex = Math.min(glyphRamp.length - 1, Math.floor(light * glyphRamp.length));
-      const colorIndex = Math.min(gruvboxRamp.length - 1, Math.floor(light * gruvboxRamp.length));
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      let glyphIndex: number;
+      let colorIndex: number;
+
+      if (bootProgress < 1 && cellHash(index, 17) > bootProgress) {
+        glyphIndex = Math.floor(cellHash(index + noiseFrame * 97, 29) * glyphRamp.length);
+        colorIndex = cellHash(index + noiseFrame * 53, 41) < 0.5 ? 0 : 1;
+      } else {
+        let light = lightBuffer[index] ?? 0;
+        if (canvasBounds) {
+          const deltaX = (column + 0.5) * cellWidth - pointerCanvasX;
+          const deltaY = (row + 0.5) * cellHeight - pointerCanvasY;
+          const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+          if (distance < glowRadius) {
+            light = Math.min(1, light + (1 - distance / glowRadius) * 0.22);
+          }
+        }
+        glyphIndex = Math.min(glyphRamp.length - 1, Math.floor(light * glyphRamp.length));
+        colorIndex = Math.min(gruvboxRamp.length - 1, Math.floor(light * gruvboxRamp.length));
+      }
+
       asciiContext.drawImage(
         glyphAtlas,
         glyphIndex * atlasCellWidth,
         colorIndex * atlasCellHeight,
         atlasCellWidth,
         atlasCellHeight,
-        (index % columns) * cellWidth,
-        Math.floor(index / columns) * cellHeight,
+        column * cellWidth,
+        row * cellHeight,
         destinationWidth,
         destinationHeight,
       );
@@ -335,10 +371,21 @@ function startKusaAsciiScene(): void {
 
   function renderAsciiFrame(timestamp: number): void {
     framePending = false;
+    if (bootStartedAt < 0) {
+      bootStartedAt = timestamp;
+    }
+    const bootActive = !reducedMotion.matches && timestamp - bootStartedAt < bootDurationMs;
     const target = targetRotation(timestamp);
+    if (reducedMotion.matches) {
+      yaw = target.yaw;
+      pitch = target.pitch;
+      renderAsciiModel(timestamp);
+      return;
+    }
     const yawDelta = target.yaw - yaw;
     const pitchDelta = target.pitch - pitch;
     const settled =
+      !bootActive &&
       (pointerSeen || reducedMotion.matches) &&
       Math.abs(yawDelta) < 0.0005 &&
       Math.abs(pitchDelta) < 0.0005;
@@ -346,13 +393,13 @@ function startKusaAsciiScene(): void {
     if (settled) {
       yaw = target.yaw;
       pitch = target.pitch;
-      renderAsciiModel();
+      renderAsciiModel(timestamp);
       return;
     }
 
     yaw += yawDelta * 0.35;
     pitch += pitchDelta * 0.35;
-    renderAsciiModel();
+    renderAsciiModel(timestamp);
     scheduleFrame();
   }
 
@@ -361,6 +408,8 @@ function startKusaAsciiScene(): void {
     (event) => {
       pointerX = clamp((event.clientX / window.innerWidth) * 2 - 1, -1, 1);
       pointerY = clamp((event.clientY / window.innerHeight) * 2 - 1, -1, 1);
+      pointerClientX = event.clientX;
+      pointerClientY = event.clientY;
       pointerSeen = true;
       scheduleFrame();
     },
