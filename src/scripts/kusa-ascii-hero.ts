@@ -17,7 +17,7 @@ const cameraDistance = 6;
 const bootDurationMs = 900;
 const viewTransitionDurationMs = 560;
 const glowRadius = 130;
-const routes = ["work", "approach", "contact"] as const;
+const routes = ["purpose", "values", "posts", "contact"] as const;
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
@@ -167,6 +167,51 @@ function createModelData(word: string): Float32Array {
   return data;
 }
 
+function createAutomationLogoData(): Float32Array {
+  const stencil = [
+    "          ###      ###",
+    "----      ###     ### ",
+    "          ###    ###  ",
+    "-------   ###   ###   ",
+    "          #######     ",
+    "------    ###   ###   ",
+    "          ###    ###  ",
+    "---       ###     ### ",
+    "          ###      ###",
+  ] as const;
+  let pointCount = 0;
+  stencil.forEach((row) => {
+    for (const cell of row) {
+      if (cell !== " ") {
+        pointCount += 1;
+      }
+    }
+  });
+  const data = new Float32Array(pointCount * 7);
+  const modelWidth = 2.55;
+  const modelHeight = 1.65;
+  let pointIndex = 0;
+
+  stencil.forEach((row, rowIndex) => {
+    for (let columnIndex = 0; columnIndex < row.length; columnIndex += 1) {
+      const cell = row[columnIndex];
+      if (cell === " ") {
+        continue;
+      }
+      const x = (columnIndex / (row.length - 1) - 0.5) * modelWidth;
+      const y = (0.5 - rowIndex / (stencil.length - 1)) * modelHeight;
+      const offset = pointIndex * 7;
+      data[offset] = x;
+      data[offset + 1] = y;
+      data[offset + 2] = 0.18;
+      data[offset + 5] = 1;
+      data[offset + 6] = cell === "#" ? 1 : 0.25;
+      pointIndex += 1;
+    }
+  });
+  return data;
+}
+
 function startKusaAsciiScene(): void {
   const stage = document.querySelector<HTMLElement>("#kusa-ascii-stage");
   const canvas = document.querySelector<HTMLCanvasElement>("#kusa-ascii-canvas");
@@ -184,7 +229,7 @@ function startKusaAsciiScene(): void {
   const asciiContext = renderingContext;
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const kusaModelData = createModelData("KUSA");
-  const kModelData = createModelData("K");
+  const logoModelData = createAutomationLogoData();
   const homeControl = asciiStage.querySelector<HTMLAnchorElement>(".ascii-home");
   const navLinks = asciiStage.querySelectorAll<HTMLAnchorElement>(".ascii-nav a");
   const sections = asciiStage.querySelectorAll<HTMLElement>(".site-section");
@@ -371,9 +416,9 @@ function startKusaAsciiScene(): void {
 
   function renderAsciiModel(timestamp: number): void {
     const homeScale = Math.min(width * 0.25, height * 0.37);
-    const logoScale = width < 600 ? 24 : 30;
-    const logoCenterX = (width < 600 ? 12 : clamp(width * 0.03, 16, 40)) + logoScale * 1.48;
-    const logoCenterY = width < 600 ? 46 : 50;
+    const logoScale = width < 600 ? 40 : 44;
+    const logoCenterX = (width < 600 ? 12 : clamp(width * 0.03, 16, 40)) + logoScale * 1.2;
+    const logoCenterY = width < 600 ? 49 : 53;
     const centerX = width / 2 + (logoCenterX - width / 2) * viewProgress;
     const centerY = height / 2 + (logoCenterY - height / 2) * viewProgress;
     const scale = homeScale + (logoScale - homeScale) * viewProgress;
@@ -385,7 +430,7 @@ function startKusaAsciiScene(): void {
 
     asciiContext.clearRect(0, 0, width, height);
     drawAsciiModel(kusaModelData, timestamp, centerX, centerY, scale, kusaReveal, bootProgress);
-    drawAsciiModel(kModelData, timestamp, centerX, centerY, scale, kReveal, bootProgress);
+    drawAsciiModel(logoModelData, timestamp, centerX, centerY, scale, kReveal, bootProgress);
   }
 
   function scheduleFrame(): void {
@@ -397,7 +442,7 @@ function startKusaAsciiScene(): void {
 
   function focusView(route: string): void {
     if (route) {
-      asciiStage.querySelector<HTMLElement>(`#${route} .section-path`)?.focus();
+      asciiStage.querySelector<HTMLElement>(`#${route} .section-lede`)?.focus();
       return;
     }
     navLinks[0]?.focus();
@@ -471,8 +516,8 @@ function startKusaAsciiScene(): void {
     let targetYaw: number;
     let targetPitch: number;
     if (reducedMotion.matches || transitionTarget === 1) {
-      targetYaw = -0.35;
-      targetPitch = -0.1;
+      targetYaw = -0.12;
+      targetPitch = -0.03;
     } else if (pointerSeen) {
       targetYaw = pointerX * rotationScalar;
       targetPitch = pointerY * rotationScalar;
