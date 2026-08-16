@@ -20,41 +20,39 @@ import "../styles/kusa-landing.css";
   </head>
   <body>
     <main>
-      <KusaAsciiHero />
+      <KusaAsciiHero>
+        <section class="site-section" id="work" hidden>
+          <h2 class="section-path" tabindex="-1">~/work</h2>
+          <p class="section-lede">
+            We build systems that run without supervision.
+          </p>
+          <ul class="section-list">
+            <li>Agents that carry a task from request to result, unattended.</li>
+            <li>Pipelines that recover from failure instead of paging someone.</li>
+            <li>Tools that disappear into the workflow they serve.</li>
+          </ul>
+        </section>
 
-      <section class="site-section" id="work">
-        <h2 class="section-path">~/work</h2>
-        <p class="section-lede">
-          We build systems that run without supervision.
-        </p>
-        <ul class="section-list">
-          <li>Agents that carry a task from request to result, unattended.</li>
-          <li>Pipelines that recover from failure instead of paging someone.</li>
-          <li>Tools that disappear into the workflow they serve.</li>
-        </ul>
-      </section>
+        <section class="site-section" id="approach" hidden>
+          <h2 class="section-path" tabindex="-1">~/approach</h2>
+          <p class="section-lede">
+            Software should work automatically.
+          </p>
+          <p class="section-body">
+            We keep systems small and boring on purpose. Every moving part is one
+            more thing that wakes you up at night, so we build the fewest parts
+            that do the whole job — then we let them run.
+          </p>
+        </section>
 
-      <section class="site-section" id="approach">
-        <h2 class="section-path">~/approach</h2>
-        <p class="section-lede">
-          Software should work automatically.
-        </p>
-        <p class="section-body">
-          We keep systems small and boring on purpose. Every moving part is one
-          more thing that wakes you up at night, so we build the fewest parts
-          that do the whole job — then we let them run.
-        </p>
-      </section>
-
-      <section class="site-section" id="contact">
-        <h2 class="section-path">~/contact</h2>
-        <p class="section-lede">
-          Have something that should run itself?
-        </p>
-        <a class="section-link" href="mailto:hello@kusa.build">hello@kusa.build</a>
-      </section>
-
-      <footer class="site-footer">© 2026 kusa</footer>
+        <section class="site-section" id="contact" hidden>
+          <h2 class="section-path" tabindex="-1">~/contact</h2>
+          <p class="section-lede">
+            Have something that should run itself?
+          </p>
+          <a class="section-link" href="mailto:hello@kusa.build">hello@kusa.build</a>
+        </section>
+      </KusaAsciiHero>
     </main>
   </body>
 </html>

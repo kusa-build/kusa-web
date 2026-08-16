@@ -15,7 +15,9 @@ const autoRotationSpeed = 0.0004;
 const autoRotationMaxDistance = 0.28;
 const cameraDistance = 6;
 const bootDurationMs = 900;
+const viewTransitionDurationMs = 560;
 const glowRadius = 130;
+const routes = ["work", "approach", "contact"] as const;
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.max(minimum, Math.min(maximum, value));
@@ -149,6 +151,22 @@ function createWordModel(word: string): ReadonlyArray<Point3> {
   return points;
 }
 
+function createModelData(word: string): Float32Array {
+  const model = createWordModel(word);
+  const data = new Float32Array(model.length * 7);
+  model.forEach((point, pointIndex) => {
+    const offset = pointIndex * 7;
+    data[offset] = point.x;
+    data[offset + 1] = point.y;
+    data[offset + 2] = point.z;
+    data[offset + 3] = point.normalX;
+    data[offset + 4] = point.normalY;
+    data[offset + 5] = point.normalZ;
+    data[offset + 6] = point.brightness;
+  });
+  return data;
+}
+
 function startKusaAsciiScene(): void {
   const stage = document.querySelector<HTMLElement>("#kusa-ascii-stage");
   const canvas = document.querySelector<HTMLCanvasElement>("#kusa-ascii-canvas");
@@ -165,18 +183,11 @@ function startKusaAsciiScene(): void {
   const asciiCanvas = canvas;
   const asciiContext = renderingContext;
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  const model = createWordModel("KUSA");
-  const modelData = new Float32Array(model.length * 7);
-  model.forEach((point, pointIndex) => {
-    const offset = pointIndex * 7;
-    modelData[offset] = point.x;
-    modelData[offset + 1] = point.y;
-    modelData[offset + 2] = point.z;
-    modelData[offset + 3] = point.normalX;
-    modelData[offset + 4] = point.normalY;
-    modelData[offset + 5] = point.normalZ;
-    modelData[offset + 6] = point.brightness;
-  });
+  const kusaModelData = createModelData("KUSA");
+  const kModelData = createModelData("K");
+  const homeControl = asciiStage.querySelector<HTMLAnchorElement>(".ascii-home");
+  const navLinks = asciiStage.querySelectorAll<HTMLAnchorElement>(".ascii-nav a");
+  const sections = asciiStage.querySelectorAll<HTMLElement>(".site-section");
   const glyphAtlas = document.createElement("canvas");
   let width = 0;
   let height = 0;
@@ -199,6 +210,11 @@ function startKusaAsciiScene(): void {
   let pitch = 0;
   let framePending = false;
   let bootStartedAt = -1;
+  let viewProgress = routes.includes(location.hash.slice(1) as (typeof routes)[number]) ? 1 : 0;
+  let transitionFrom = viewProgress;
+  let transitionTarget = viewProgress;
+  let transitionStartedAt = -1;
+  let focusAfterTransition = "";
 
   function buildGlyphAtlas(fontSize: number): void {
     atlasCellWidth = Math.ceil(cellWidth * pixelRatio);
@@ -243,29 +259,24 @@ function startKusaAsciiScene(): void {
     scheduleFrame();
   }
 
-  function targetRotation(timestamp: number): { readonly yaw: number; readonly pitch: number } {
-    if (reducedMotion.matches) {
-      return { yaw: -0.35, pitch: -0.1 };
+  function drawAsciiModel(
+    modelData: Float32Array,
+    timestamp: number,
+    centerX: number,
+    centerY: number,
+    scale: number,
+    reveal: number,
+    bootProgress: number,
+  ): void {
+    if (reveal <= 0) {
+      return;
     }
-    if (pointerSeen) {
-      return { yaw: pointerX * rotationScalar, pitch: pointerY * rotationScalar };
-    }
-    return {
-      yaw: Math.sin(timestamp * autoRotationSpeed) * autoRotationMaxDistance,
-      pitch: Math.cos(timestamp * autoRotationSpeed) * autoRotationMaxDistance * 0.35,
-    };
-  }
-
-  function renderAsciiModel(timestamp: number): void {
     depthBuffer.fill(-100);
     let litCount = 0;
     const cosineYaw = Math.cos(yaw);
     const sineYaw = Math.sin(yaw);
     const cosinePitch = Math.cos(pitch);
     const sinePitch = Math.sin(pitch);
-    const scale = Math.min(width * 0.25, height * 0.37);
-    const halfWidth = width / 2;
-    const halfHeight = height / 2;
 
     for (let offset = 0; offset < modelData.length; offset += 7) {
       const pointX = modelData[offset] ?? 0;
@@ -276,8 +287,8 @@ function startKusaAsciiScene(): void {
       const rotatedY = pointY * cosinePitch - yawZ * sinePitch;
       const rotatedZ = pointY * sinePitch + yawZ * cosinePitch;
       const perspective = cameraDistance / (cameraDistance - rotatedZ);
-      const column = Math.floor((halfWidth + yawX * scale * perspective) / cellWidth);
-      const row = Math.floor((halfHeight - rotatedY * scale * perspective) / cellHeight);
+      const column = Math.floor((centerX + yawX * scale * perspective) / cellWidth);
+      const row = Math.floor((centerY - rotatedY * scale * perspective) / cellHeight);
       if (column < 0 || column >= columns || row < 0 || row >= rows) {
         continue;
       }
@@ -313,19 +324,15 @@ function startKusaAsciiScene(): void {
       );
     }
 
-    asciiContext.clearRect(0, 0, width, height);
     const destinationWidth = atlasCellWidth / pixelRatio;
     const destinationHeight = atlasCellHeight / pixelRatio;
-    const bootProgress = reducedMotion.matches
-      ? 1
-      : clamp((timestamp - bootStartedAt) / bootDurationMs, 0, 1);
     const noiseFrame = Math.floor(timestamp / 48);
-    const canvasBounds = pointerSeen ? asciiCanvas.getBoundingClientRect() : null;
-    const pointerCanvasX = canvasBounds ? pointerClientX - canvasBounds.left : 0;
-    const pointerCanvasY = canvasBounds ? pointerClientY - canvasBounds.top : 0;
 
     for (let litIndex = 0; litIndex < litCount; litIndex += 1) {
       const index = litCells[litIndex] ?? 0;
+      if (cellHash(index, 73) > reveal) {
+        continue;
+      }
       const column = index % columns;
       const row = Math.floor(index / columns);
       let glyphIndex: number;
@@ -336,9 +343,9 @@ function startKusaAsciiScene(): void {
         colorIndex = cellHash(index + noiseFrame * 53, 41) < 0.5 ? 0 : 1;
       } else {
         let light = lightBuffer[index] ?? 0;
-        if (canvasBounds) {
-          const deltaX = (column + 0.5) * cellWidth - pointerCanvasX;
-          const deltaY = (row + 0.5) * cellHeight - pointerCanvasY;
+        if (pointerSeen) {
+          const deltaX = (column + 0.5) * cellWidth - pointerClientX;
+          const deltaY = (row + 0.5) * cellHeight - pointerClientY;
           const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
           if (distance < glowRadius) {
             light = Math.min(1, light + (1 - distance / glowRadius) * 0.22);
@@ -362,11 +369,78 @@ function startKusaAsciiScene(): void {
     }
   }
 
+  function renderAsciiModel(timestamp: number): void {
+    const homeScale = Math.min(width * 0.25, height * 0.37);
+    const logoScale = width < 600 ? 24 : 30;
+    const logoCenterX = (width < 600 ? 12 : clamp(width * 0.03, 16, 40)) + logoScale * 1.48;
+    const logoCenterY = width < 600 ? 46 : 50;
+    const centerX = width / 2 + (logoCenterX - width / 2) * viewProgress;
+    const centerY = height / 2 + (logoCenterY - height / 2) * viewProgress;
+    const scale = homeScale + (logoScale - homeScale) * viewProgress;
+    const bootProgress = reducedMotion.matches
+      ? 1
+      : clamp((timestamp - bootStartedAt) / bootDurationMs, 0, 1);
+    const kusaReveal = clamp(1 - viewProgress * 1.4, 0, 1);
+    const kReveal = clamp((viewProgress - 0.18) / 0.82, 0, 1);
+
+    asciiContext.clearRect(0, 0, width, height);
+    drawAsciiModel(kusaModelData, timestamp, centerX, centerY, scale, kusaReveal, bootProgress);
+    drawAsciiModel(kModelData, timestamp, centerX, centerY, scale, kReveal, bootProgress);
+  }
+
   function scheduleFrame(): void {
     if (!framePending) {
       framePending = true;
       window.requestAnimationFrame(renderAsciiFrame);
     }
+  }
+
+  function focusView(route: string): void {
+    if (route) {
+      asciiStage.querySelector<HTMLElement>(`#${route} .section-path`)?.focus();
+      return;
+    }
+    navLinks[0]?.focus();
+  }
+
+  function setView(route: string, animate: boolean, moveFocus: boolean): void {
+    const validRoute = routes.includes(route as (typeof routes)[number]) ? route : "";
+    asciiStage.dataset.view = validRoute || "home";
+    asciiCanvas.setAttribute(
+      "aria-label",
+      validRoute
+        ? "K rendered as a three-dimensional ASCII logo"
+        : "KUSA rendered as three-dimensional ASCII art that tilts toward the cursor",
+    );
+    if (homeControl) {
+      homeControl.tabIndex = validRoute ? 0 : -1;
+    }
+    sections.forEach((section) => {
+      section.hidden = section.id !== validRoute;
+    });
+    navLinks.forEach((link) => {
+      if (link.hash === `#${validRoute}`) {
+        link.setAttribute("aria-current", "page");
+      } else {
+        link.removeAttribute("aria-current");
+      }
+    });
+
+    transitionFrom = viewProgress;
+    transitionTarget = validRoute ? 1 : 0;
+    focusAfterTransition = moveFocus ? validRoute || "home" : "";
+    if (reducedMotion.matches || !animate || transitionFrom === transitionTarget) {
+      viewProgress = transitionTarget;
+      transitionStartedAt = -1;
+      scheduleFrame();
+      if (moveFocus) {
+        focusView(validRoute);
+      }
+      focusAfterTransition = "";
+      return;
+    }
+    transitionStartedAt = performance.now();
+    scheduleFrame();
   }
 
   function renderAsciiFrame(timestamp: number): void {
@@ -375,24 +449,57 @@ function startKusaAsciiScene(): void {
       bootStartedAt = timestamp;
     }
     const bootActive = !reducedMotion.matches && timestamp - bootStartedAt < bootDurationMs;
-    const target = targetRotation(timestamp);
+    let transitionActive = false;
+    if (transitionStartedAt >= 0) {
+      const transitionProgress = clamp(
+        (timestamp - transitionStartedAt) / viewTransitionDurationMs,
+        0,
+        1,
+      );
+      const easedProgress = transitionProgress * transitionProgress * (3 - 2 * transitionProgress);
+      viewProgress = transitionFrom + (transitionTarget - transitionFrom) * easedProgress;
+      transitionActive = transitionProgress < 1;
+      if (!transitionActive) {
+        transitionStartedAt = -1;
+        if (focusAfterTransition) {
+          focusView(focusAfterTransition === "home" ? "" : focusAfterTransition);
+          focusAfterTransition = "";
+        }
+      }
+    }
+
+    let targetYaw: number;
+    let targetPitch: number;
+    if (reducedMotion.matches || transitionTarget === 1) {
+      targetYaw = -0.35;
+      targetPitch = -0.1;
+    } else if (pointerSeen) {
+      targetYaw = pointerX * rotationScalar;
+      targetPitch = pointerY * rotationScalar;
+    } else if (bootActive) {
+      targetYaw = Math.sin(timestamp * autoRotationSpeed) * autoRotationMaxDistance;
+      targetPitch = Math.cos(timestamp * autoRotationSpeed) * autoRotationMaxDistance * 0.35;
+    } else {
+      targetYaw = -0.2;
+      targetPitch = -0.07;
+    }
     if (reducedMotion.matches) {
-      yaw = target.yaw;
-      pitch = target.pitch;
+      yaw = targetYaw;
+      pitch = targetPitch;
       renderAsciiModel(timestamp);
       return;
     }
-    const yawDelta = target.yaw - yaw;
-    const pitchDelta = target.pitch - pitch;
+    const yawDelta = targetYaw - yaw;
+    const pitchDelta = targetPitch - pitch;
     const settled =
       !bootActive &&
-      (pointerSeen || reducedMotion.matches) &&
+      !transitionActive &&
       Math.abs(yawDelta) < 0.0005 &&
       Math.abs(pitchDelta) < 0.0005;
 
     if (settled) {
-      yaw = target.yaw;
-      pitch = target.pitch;
+      yaw = targetYaw;
+      pitch = targetPitch;
       renderAsciiModel(timestamp);
       return;
     }
@@ -417,8 +524,27 @@ function startKusaAsciiScene(): void {
   );
   reducedMotion.addEventListener("change", scheduleFrame);
 
+  navLinks.forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      const route = link.hash.slice(1);
+      if (location.hash !== link.hash) {
+        history.pushState(null, "", link.hash);
+      }
+      setView(route, true, true);
+    });
+  });
+  homeControl?.addEventListener("click", (event) => {
+    event.preventDefault();
+    history.pushState(null, "", `${location.pathname}${location.search}`);
+    setView("", true, true);
+  });
+  window.addEventListener("popstate", () => setView(location.hash.slice(1), true, false));
+  window.addEventListener("hashchange", () => setView(location.hash.slice(1), true, false));
+
   const resizeObserver = new ResizeObserver(resizeAsciiCanvas);
   resizeObserver.observe(asciiStage);
+  setView(location.hash.slice(1), false, false);
   resizeAsciiCanvas();
 }
 

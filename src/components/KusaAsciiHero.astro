@@ -6,11 +6,17 @@
     aria-label="KUSA rendered as three-dimensional ASCII art that tilts toward the cursor"
   ></canvas>
 
+  <a class="ascii-home" href="#" aria-label="Return to Kusa home"></a>
+
   <nav class="ascii-nav" aria-label="Site">
     <a href="#work">Work</a>
     <a href="#approach">Approach</a>
     <a href="#contact">Contact</a>
   </nav>
+
+  <div class="ascii-content">
+    <slot />
+  </div>
 
   <p class="ascii-status">kusa — automatic software · est. 2026</p>
 

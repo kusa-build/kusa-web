@@ -17,8 +17,9 @@ html,
 body {
   width: 100%;
   min-width: 320px;
-  min-height: 100%;
+  height: 100%;
   margin: 0;
+  overflow: hidden;
   background: #1d2021;
 }
 
@@ -60,6 +61,27 @@ main {
   height: 100%;
 }
 
+.ascii-home {
+  position: absolute;
+  z-index: 4;
+  top: 1rem;
+  left: clamp(1rem, 3vw, 2.5rem);
+  width: 7rem;
+  height: 5rem;
+  visibility: hidden;
+  opacity: 0;
+}
+
+.ascii-screen:not([data-view="home"]) .ascii-home {
+  visibility: visible;
+  opacity: 1;
+}
+
+.ascii-home:focus-visible {
+  outline: 1px solid #b8bb26;
+  outline-offset: 3px;
+}
+
 .ascii-nav {
   position: absolute;
   z-index: 3;
@@ -95,8 +117,13 @@ main {
 }
 
 .ascii-nav a:hover::before,
-.ascii-nav a:focus-visible::before {
+.ascii-nav a:focus-visible::before,
+.ascii-nav a[aria-current="page"]::before {
   opacity: 1;
+}
+
+.ascii-nav a[aria-current="page"] {
+  color: #ebdbb2;
 }
 
 .ascii-nav a:focus-visible {
@@ -115,10 +142,30 @@ main {
   letter-spacing: 0.08em;
 }
 
+.ascii-content {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
 .site-section {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: clamp(4rem, 12vh, 7rem) clamp(1.5rem, 6vw, 3.5rem);
+  width: min(40rem, calc(100% - 12rem));
+  margin: 0;
+  padding: clamp(2rem, 6vw, 4rem);
+  opacity: 0;
+  transform: translateY(0.75rem);
+  transition:
+    opacity 220ms ease 220ms,
+    transform 220ms ease 220ms;
+}
+
+.ascii-screen:not([data-view="home"]) .site-section:not([hidden]) {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .section-path {
@@ -179,14 +226,6 @@ main {
   outline-offset: 4px;
 }
 
-.site-footer {
-  padding: 3rem clamp(1.5rem, 6vw, 3.5rem) 2rem;
-  color: #504945;
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
-  text-align: center;
-}
-
 .ascii-fallback {
   position: absolute;
   z-index: 2;
@@ -216,6 +255,18 @@ main {
   .ascii-status {
     display: none;
   }
+
+  .ascii-home {
+    top: 0.75rem;
+    left: 0.75rem;
+    width: 6rem;
+    height: 4.5rem;
+  }
+
+  .site-section {
+    width: 100%;
+    padding: 5.5rem 1.5rem 7rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -228,5 +279,7 @@ main {
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 }
