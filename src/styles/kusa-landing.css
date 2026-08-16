@@ -1,0 +1,195 @@
+:root {
+  color-scheme: dark;
+  background: #101110;
+  font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+main {
+  width: 100%;
+  min-width: 320px;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #101110;
+}
+
+button {
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ascii-screen {
+  --ascii-glow: #237f91;
+  position: relative;
+  width: 100%;
+  height: 100svh;
+  min-height: 420px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 50%, color-mix(in srgb, var(--ascii-glow) 10%, transparent), transparent 42%),
+    #101110;
+  isolation: isolate;
+  transition: background 450ms ease;
+}
+
+.ascii-screen::before {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3px,
+    rgba(255, 255, 255, 0.01) 4px
+  );
+  content: "";
+  pointer-events: none;
+}
+
+.ascii-screen::after {
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  left: 50%;
+  width: min(62vw, 58rem);
+  height: min(46vh, 34rem);
+  border-radius: 50%;
+  background: var(--ascii-glow);
+  content: "";
+  filter: blur(170px);
+  opacity: 0.07;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition:
+    background 450ms ease,
+    opacity 180ms ease;
+}
+
+.ascii-screen[data-flash="true"]::after {
+  opacity: 0.16;
+}
+
+.ascii-canvas {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ascii-color-control {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  cursor: crosshair;
+}
+
+.ascii-color-control:focus-visible {
+  outline: 1px solid rgba(90, 220, 210, 0.72);
+  outline-offset: -0.75rem;
+}
+
+.ascii-brand,
+.ascii-readout {
+  position: absolute;
+  z-index: 3;
+  right: clamp(1rem, 3vw, 3rem);
+  left: clamp(1rem, 3vw, 3rem);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #626966;
+  font-size: clamp(0.58rem, 0.72vw, 0.72rem);
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.ascii-brand {
+  top: clamp(1.15rem, 3vw, 2.75rem);
+}
+
+.ascii-brand b {
+  color: #d6ddd8;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+}
+
+.ascii-readout {
+  bottom: clamp(1.15rem, 3vw, 2.75rem);
+}
+
+.ascii-readout b {
+  color: #a0aaa5;
+  font-weight: 600;
+}
+
+.ascii-readout i {
+  color: #454d49;
+  font-style: normal;
+}
+
+.ascii-fallback {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  color: #45d5c6;
+  font: 600 clamp(0.3rem, 0.75vw, 0.75rem)/1.2 SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  transform: translate(-50%, -50%);
+}
+
+.screen-reader-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .ascii-brand,
+  .ascii-readout {
+    font-size: 0.58rem;
+  }
+
+  .ascii-brand span,
+  .ascii-readout span:last-child {
+    color: #737b77;
+  }
+
+  .ascii-screen::after {
+    width: 100vw;
+    height: 44vh;
+    filter: blur(100px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
