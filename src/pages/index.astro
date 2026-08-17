@@ -1,5 +1,5 @@
 ---
-import KusaAsciiHero from "../components/KusaAsciiHero.astro";
+import KusaHero from "../components/KusaHero.astro";
 import "../styles/kusa-landing.css";
 ---
 
@@ -21,26 +21,89 @@ import "../styles/kusa-landing.css";
   </head>
   <body>
     <main>
-      <KusaAsciiHero>
-        <section class="site-section" id="purpose" hidden>
+      <KusaHero>
+        <section class="site-section" id="about" hidden>
           <p class="section-lede" tabindex="-1">
-            Software should work automatically.
+            Technology should empower humans, never replace them.
           </p>
           <p class="section-body">
-            We keep systems small and boring on purpose. Every moving part is one
-            more thing that wakes you up at night, so we build the fewest parts
-            that do the whole job — then we let them run.
+            Kusa is built on that belief. We tap into our partners&rsquo;
+            expertise and automate the boring parts of their day: critical
+            infrastructure that stays reliable and bulletproof, and apps that
+            spark joy instead of tickets. The hours we win back belong to
+            people, for the work only people can do.
           </p>
+          <p class="section-body">
+            <em>Humans stay at the wheel.</em> AI is the sharpest tool
+            we&rsquo;ve ever picked up, and a tool is all it is. We still read
+            every line of code; the speed AI buys us gets spent on validation,
+            testing, and reliability.
+          </p>
+          <p class="section-body">
+            <em>Joy that outlasts the demo.</em> The best tools disappear into
+            the work and leave people better at it. We build software people
+            enjoy using, and systems their owners actually understand.
+          </p>
+          <p class="section-body">The humans behind kusa:</p>
+          <ul class="section-list">
+            <li class="founder">
+              <img class="founder-photo" src="/founders/rafael-gutierrez.svg" alt="Rafael Gutierrez" width="96" height="96" />
+              <span>
+                <a class="section-link" href="https://www.linkedin.com/in/paelgutierrez/">Rafael Gutierrez</a>:
+                generalist who&rsquo;s shipped across the stack at bleeding-edge
+                startups (Akkio, Aescape), happiest building internal tools that
+                make validation fast.
+              </span>
+            </li>
+            <li class="founder">
+              <img class="founder-photo" src="/founders/daniel-trinidad.svg" alt="Daniel Trinidad" width="96" height="96" />
+              <span>
+                <a class="section-link" href="https://www.linkedin.com/in/daniel-trinidad-a12ab386/">Daniel Trinidad</a>:
+                software engineer with nearly a decade in enterprise
+                integrations and microservices (BMTG, OOCL); led migrations off
+                legacy platforms and coached teams toward better ways of working.
+              </span>
+            </li>
+          </ul>
         </section>
 
         <section class="site-section" id="values" hidden>
           <p class="section-lede" tabindex="-1">
-            The systems we build should:
+            What we hold ourselves to:
           </p>
           <ul class="section-list">
-            <li>Carry a task from request to result, unattended.</li>
-            <li>Recover from failure instead of paging someone.</li>
-            <li>Disappear into the workflow they serve.</li>
+            <li>
+              <em>The agency is ours.</em> Tools execute; humans intend. We
+              keep our minds sharp and never outsource the thinking.
+            </li>
+            <li>
+              <em>Bring lightness.</em> Warmth goes a long way, especially
+              under stress. We overcommunicate, because nobody reads minds as
+              well as we assume.
+            </li>
+            <li>
+              <em>Lead with kindness.</em> People first, workers second.
+              Everyone has bad days; assume grace, and generosity compounds.
+            </li>
+            <li>
+              <em>Show the cracks.</em> Openness builds trust, concealment
+              builds distance. A mistake revealed is a win, not a charge.
+            </li>
+            <li>
+              <em>Never stop asking.</em> Humble enough to know how much we
+              don&rsquo;t know, confident enough to question what everyone
+              knows. We teach what we learn.
+            </li>
+            <li>
+              <em>Code is a tool, not the point.</em> We&rsquo;re not here to
+              sell clever code. If a spreadsheet ran the business better,
+              we&rsquo;d use the spreadsheet.
+            </li>
+            <li>
+              <em>Big dreams, sober plans.</em> Ambition is cheap; the plan is
+              the hard part. We convince ourselves of every step before we take
+              it.
+            </li>
           </ul>
         </section>
 
@@ -56,7 +119,7 @@ import "../styles/kusa-landing.css";
           </p>
           <a class="section-link" href="mailto:hello@kusa.build">hello@kusa.build</a>
         </section>
-      </KusaAsciiHero>
+      </KusaHero>
     </main>
   </body>
 </html>

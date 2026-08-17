@@ -1,0 +1,26 @@
+<section class="site-screen" id="kusa-stage" aria-label="Kusa">
+  <div class="dots-drift a" aria-hidden="true"></div>
+  <div class="dots-drift b" aria-hidden="true"></div>
+  <div class="dots-drift c" aria-hidden="true"></div>
+
+  <a class="site-logo" href="#" aria-label="Return to Kusa home">
+    <span class="logo-prompt" aria-hidden="true">&gt;</span><span class="logo-word" aria-hidden="true">k</span><span class="logo-cursor" aria-hidden="true"></span>
+  </a>
+
+  <nav class="site-nav" aria-label="Site">
+    <a href="#about">about</a>
+    <a href="#values">values</a>
+    <a href="#posts">posts</a>
+    <a href="#contact">contact</a>
+  </nav>
+
+  <div class="site-content">
+    <slot />
+  </div>
+
+  <p class="site-status">kusa · est. 2026</p>
+</section>
+
+<script>
+  import "../scripts/kusa-hero";
+</script>

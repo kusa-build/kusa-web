@@ -27,20 +27,20 @@ main {
   width: 100%;
 }
 
-.ascii-screen {
-  --ascii-glow: #98971a;
+.site-screen {
+  --glow: #98971a;
   position: relative;
   width: 100%;
   height: 100svh;
   min-height: 420px;
   overflow: hidden;
   background:
-    radial-gradient(ellipse at 50% 50%, color-mix(in srgb, var(--ascii-glow) 8%, transparent), transparent 42%),
+    radial-gradient(ellipse at 50% 50%, color-mix(in srgb, var(--glow) 8%, transparent), transparent 42%),
     #1d2021;
   isolation: isolate;
 }
 
-.ascii-screen::before {
+.site-screen::before {
   position: absolute;
   z-index: 0;
   inset: 0;
@@ -117,51 +117,47 @@ main {
   }
 }
 
-.ascii-canvas {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.ascii-home {
+.site-logo {
   position: absolute;
   z-index: 4;
-  top: 1.1rem;
-  left: clamp(1rem, 3vw, 2.5rem);
+  top: 50%;
+  left: 50%;
   display: flex;
   align-items: baseline;
   padding: 0.5rem 0.75rem 0.6rem 0.5rem;
-  font: 600 clamp(1.6rem, 2.4vw, 2rem)/1 SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font: 600 clamp(2rem, 7vw, 4.5rem)/1 SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   color: #ebdbb2;
   text-decoration: none;
-  visibility: hidden;
-  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition:
+    top 560ms ease,
+    left 560ms ease,
+    transform 560ms ease,
+    font-size 560ms ease;
 }
 
-.ascii-screen:not([data-view="home"]) .ascii-home {
-  visibility: visible;
-  opacity: 1;
-  transition: opacity 240ms ease 180ms;
+.site-screen:not([data-view="home"]) .site-logo {
+  top: 1.1rem;
+  left: clamp(1rem, 3vw, 2.5rem);
+  font-size: clamp(1.6rem, 2.4vw, 2rem);
+  transform: translate(0, 0);
 }
 
-.home-prompt {
+.logo-prompt {
   margin-right: 0.06em;
   color: #b8bb26;
 }
 
-.home-cursor {
+.logo-cursor {
   width: 0.52em;
   height: 1.06em;
   margin-left: 0.1em;
   background: #b8bb26;
   transform: translateY(0.12em);
-  animation: home-cursor-blink 1.15s step-end infinite;
+  animation: logo-cursor-blink 1.15s step-end infinite;
 }
 
-@keyframes home-cursor-blink {
+@keyframes logo-cursor-blink {
   0%,
   55% {
     opacity: 1;
@@ -173,12 +169,12 @@ main {
   }
 }
 
-.ascii-home:focus-visible {
+.site-logo:focus-visible {
   outline: 1px solid #b8bb26;
   outline-offset: 3px;
 }
 
-.ascii-nav {
+.site-nav {
   position: absolute;
   z-index: 3;
   top: 50%;
@@ -190,7 +186,7 @@ main {
   transform: translateY(-50%);
 }
 
-.ascii-nav a {
+.site-nav a {
   color: #a89984;
   font-size: clamp(0.78rem, 1vw, 0.95rem);
   line-height: 1;
@@ -199,34 +195,34 @@ main {
   transition: color 160ms ease;
 }
 
-.ascii-nav a::before {
+.site-nav a::before {
   content: ">\00a0";
   color: #b8bb26;
   opacity: 0;
   transition: opacity 160ms ease;
 }
 
-.ascii-nav a:hover,
-.ascii-nav a:focus-visible {
+.site-nav a:hover,
+.site-nav a:focus-visible {
   color: #ebdbb2;
 }
 
-.ascii-nav a:hover::before,
-.ascii-nav a:focus-visible::before,
-.ascii-nav a[aria-current="page"]::before {
+.site-nav a:hover::before,
+.site-nav a:focus-visible::before,
+.site-nav a[aria-current="page"]::before {
   opacity: 1;
 }
 
-.ascii-nav a[aria-current="page"] {
+.site-nav a[aria-current="page"] {
   color: #ebdbb2;
 }
 
-.ascii-nav a:focus-visible {
+.site-nav a:focus-visible {
   outline: 1px solid #b8bb26;
   outline-offset: 4px;
 }
 
-.ascii-status {
+.site-status {
   position: absolute;
   z-index: 3;
   bottom: clamp(1.25rem, 4vh, 2.5rem);
@@ -237,7 +233,7 @@ main {
   letter-spacing: 0.08em;
 }
 
-.ascii-content {
+.site-content {
   position: absolute;
   z-index: 2;
   inset: 0;
@@ -253,11 +249,11 @@ main {
   opacity: 0;
   transform: translateY(0.75rem);
   transition:
-    opacity 220ms ease 220ms,
-    transform 220ms ease 220ms;
+    opacity 240ms ease 420ms,
+    transform 240ms ease 420ms;
 }
 
-.ascii-screen:not([data-view="home"]) .site-section:not([hidden]) {
+.site-screen:not([data-view="home"]) .site-section:not([hidden]) {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
@@ -275,6 +271,16 @@ main {
   color: #928374;
   font-size: clamp(0.85rem, 1.1vw, 1rem);
   line-height: 1.75;
+}
+
+.section-body + .section-body,
+.section-body + .section-list {
+  margin-top: 1.1rem;
+}
+
+.section-body em,
+.section-list em {
+  color: #ebdbb2;
 }
 
 .section-list {
@@ -295,6 +301,25 @@ main {
   color: #b8bb26;
 }
 
+.founder {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+}
+
+.founder + .founder {
+  margin-top: 1.1rem;
+}
+
+.founder-photo {
+  flex-shrink: 0;
+  width: 3.4rem;
+  height: 3.4rem;
+  object-fit: cover;
+  border: 1px solid #504945;
+  border-radius: 4px;
+}
+
 .section-link {
   color: #b8bb26;
   font-size: clamp(0.95rem, 1.3vw, 1.15rem);
@@ -313,19 +338,8 @@ main {
   outline-offset: 4px;
 }
 
-.ascii-fallback {
-  position: absolute;
-  z-index: 2;
-  top: 50%;
-  left: 50%;
-  margin: 0;
-  color: #b8bb26;
-  font: 600 clamp(0.5rem, 1.4vw, 1rem)/1.2 SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  transform: translate(-50%, -50%);
-}
-
 @media (max-width: 600px) {
-  .ascii-nav {
+  .site-nav {
     top: auto;
     right: 50%;
     bottom: clamp(1.25rem, 5vh, 2.5rem);
@@ -335,15 +349,15 @@ main {
     transform: translateX(50%);
   }
 
-  .ascii-nav a {
+  .site-nav a {
     font-size: 0.66rem;
   }
 
-  .ascii-status {
+  .site-status {
     display: none;
   }
 
-  .ascii-home {
+  .site-screen:not([data-view="home"]) .site-logo {
     top: 0.75rem;
     left: 0.75rem;
   }
@@ -354,17 +368,3 @@ main {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    transition-delay: 0ms !important;
-  }
-}
